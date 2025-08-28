@@ -150,3 +150,17 @@ RegisterCommand("resetdaily", function(source,args)
         notify(source,"✅ Cooldown zurückgesetzt.")
     end)
 end)
+
+    local timestamp = os.time() - (hoursAgo * 3600)
+
+    MySQL.Async.execute("REPLACE INTO daily_rewards (identifier, last_claim) VALUES (@identifier, @time)", {
+        ['@identifier'] = identifier,
+        ['@time'] = timestamp
+    }, function()
+        local adminName = source == 0 and "CONSOLE" or GetPlayerName(source)
+        local targetName = xTarget.getName()
+
+        sendToDiscord("⏱️ Daily Cooldown gesetzt", ("%s hat den Cooldown für %s auf vor %d Stunden gesetzt."):format(adminName, targetName, hoursAgo), 16776960, Config.Webhooks.resetLog)
+        notify(source, ("✅ Cooldown für %s wurde gesetzt."):format(targetName))
+    end)
+end)
