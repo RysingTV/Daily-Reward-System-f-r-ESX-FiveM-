@@ -13,7 +13,7 @@ Admin-Befehle zum Zurücksetzen und Setzen von Cooldowns
 daily_reward.lua – Hauptscript mit Logik und Befehlen
 config.lua – Konfiguration der Belohnungen, Webhooks und Cooldown
 fxmanifest.lua – Manifest zur Einbindung ins FiveM-Resource-System
-
+ 
 ⚙️ Installation
 Dateien hinzufügen
 Lege daily_reward.lua, config.lua und fxmanifest.lua in ein neues Verzeichnis, z. B. resources/[local]/daily_bonus.
