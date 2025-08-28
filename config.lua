@@ -5,8 +5,8 @@ Config.CooldownHours = 24
 
 -- Discord Webhooks
 Config.Webhooks = {
-    dailyReward = "https://discord.com/api/webhooks/1409935586348896276/3mhfCgbJLgPyKP-P0-5FZhzB-KO9vGER0-DIQmXfGsfcACB53odKqfXXcXPEGLHxjT2a",
-    resetLog = "https://discord.com/api/webhooks/1409935586348896276/3mhfCgbJLgPyKP-P0-5FZhzB-KO9vGER0-DIQmXfGsfcACB53odKqfXXcXPEGLHxjT2a"
+    dailyReward = "DEIN WEBHOOK LINK",  -- Log
+    resetLog = "DEIN WEBHOOK LINK"      -- Log für Reset (z.B. High Team)
 }
 
 -- Belohnungen mit Gewichtung (je höher die Zahl, desto wahrscheinlicher)
@@ -20,4 +20,5 @@ Config.RewardItems = {
         {name = "weapon_pistol", count = 1, weight = 2}, -- selten
         {name = "weapon_knife", count = 1, weight = 3}   -- etwas häufiger
     }
+
 }
