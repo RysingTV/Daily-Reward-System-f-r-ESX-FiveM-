@@ -1,33 +1,47 @@
--- Seed für Zufallsgenerator, damit Rewards nicht immer gleich sind
+---------------------------------------
+-- DAILY REWARD SYSTEM
+-- Version: Optimized & Documented
+-- Autor: RysingTV twitch.tv/RysingTV
+---------------------------------------
+
+-- Initialisiert Zufallsgenerator basierend auf Game-Timer (für nicht wiederholbare Seeds)
 math.randomseed(GetGameTimer() + math.random(999999))
 
--- ESX Objekt laden
+-- ESX Objekt laden (erforderlich für Spieler-Interaktionen)
 ESX = exports["es_extended"]:getSharedObject()
 
--- Cooldown-Sperre pro Spieler (Verhindert Spam während MySQL-Abfrage)
+-- Cooldown-Sperre pro Spieler während Datenbank-Operationen (verhindert Mehrfachausführung)
 local cooldownLock = {}
 
--- MySQL Tabelle anlegen (falls noch nicht vorhanden)
+---------------------------------------
+-- Datenbank Setup
+-- Erstellt Tabelle für Daily Rewards, falls sie nicht existiert
+---------------------------------------
 MySQL.ready(function()
     MySQL.Async.execute([[
         CREATE TABLE IF NOT EXISTS daily_rewards (
-            identifier VARCHAR(60) PRIMARY KEY,
-            last_claim INT(11)
+            identifier VARCHAR(60) PRIMARY KEY, -- Eindeutige Spielerkennung
+            last_claim INT(11)                  -- Unix Timestamp des letzten Rewards
         )
     ]])
 end)
 
--- Funktion für Benachrichtigungen an Spieler oder Konsole
+---------------------------------------
+-- Utility Funktion: Benachrichtigung
+-- Schickt Nachricht an Spieler oder Konsole
+---------------------------------------
 local function notify(src, msg)
     if src ~= 0 then 
-        TriggerClientEvent('esx:showNotification', src, msg) 
+        TriggerClientEvent('esx:showNotification', src, msg)
     else 
-        print(msg) 
+        print(msg)
     end
 end
 
--- Discord Logging Funktion
--- Sendet Logs mit Titel, Nachricht, Farbe und Webhook
+---------------------------------------
+-- Discord Logging
+-- Sendet Informationen über Rewards oder Admin-Aktionen an einen Discord-Webhook
+---------------------------------------
 local function sendToDiscord(title, message, color, webhook)
     if not webhook or webhook == "" then 
         print("[WARNUNG] Kein Discord Webhook gesetzt!") 
@@ -45,58 +59,68 @@ local function sendToDiscord(title, message, color, webhook)
     }), {['Content-Type']='application/json'})
 end
 
--- Zufällige Belohnung auswählen
--- Es wird entweder ein Item oder eine Waffe aus der Config gewählt
+---------------------------------------
+-- Funktion: Zufällige Belohnung wählen
+-- Wählt zufällig Item oder Waffe aus der Config
+---------------------------------------
 local function getRandomReward()
-    -- Prüfen ob Config korrekt geladen ist
+    -- Prüfen ob die Config korrekt geladen wurde
     if not Config or not Config.RewardItems or not Config.RewardItems.items or not Config.RewardItems.weapons then
         print("[FEHLER] Config.RewardItems fehlt oder ist leer!")
         return nil
     end
 
-    -- Zufällig entscheiden: Item oder Waffe
+    -- Zufällige Entscheidung: Item oder Waffe
     local rewardType = math.random(1, 2) == 1 and "item" or "weapon"
     local rewardList = (rewardType == "item") and Config.RewardItems.items or Config.RewardItems.weapons
 
-    -- Falls die gewählte Liste leer ist → andere Liste nehmen
+    -- Falls gewählte Liste leer → andere Liste verwenden
     if #rewardList == 0 then
         rewardType = (rewardType == "item") and "weapon" or "item"
         rewardList = (rewardType == "item") and Config.RewardItems.items or Config.RewardItems.weapons
     end
 
-    -- Zufälliges Element aus der Liste wählen
+    -- Zufällige Belohnung auswählen
     local reward = rewardList[math.random(1, #rewardList)]
     reward.type = rewardType
     return reward
 end
 
--- Hauptbefehl: /daily
--- Spieler kann täglich eine Belohnung abholen
+---------------------------------------
+-- Befehl: /daily
+-- Spieler kann alle X Stunden (Config.CooldownHours) eine Belohnung abholen
+---------------------------------------
 RegisterCommand("daily", function(source)
     if source == 0 then print("Dieser Befehl ist nur für Spieler!") return end
 
-    -- Prüfen ob der Spieler aktuell im Cooldown-Lock ist
-    if cooldownLock[source] then notify(source, "Bitte warte...") return end
+    -- Cooldown-Schutz aktivieren
+    if cooldownLock[source] then 
+        notify(source, "⏳ Bitte warte, Anfrage läuft...")
+        return 
+    end
     cooldownLock[source] = true
 
     local xPlayer = ESX.GetPlayerFromId(source)
-    if not xPlayer then cooldownLock[source] = nil return end
+    if not xPlayer then 
+        cooldownLock[source] = nil 
+        return 
+    end
 
     local identifier = xPlayer.getIdentifier()
     MySQL.Async.fetchScalar("SELECT last_claim FROM daily_rewards WHERE identifier=@identifier", {['@identifier']=identifier}, function(lastClaim)
         local now = os.time()
-        local cooldown = (Config.CooldownHours or 24) * 3600 -- Stunden in Sekunden umrechnen
+        local cooldown = (Config.CooldownHours or 24) * 3600 -- Stunden in Sekunden
 
-        -- Prüfen ob Spieler Anspruch hat (entweder neu oder Cooldown abgelaufen)
+        -- Prüfen ob Spieler Anspruch hat
         if not lastClaim or os.difftime(now, lastClaim) >= cooldown then
             local reward = getRandomReward()
             if not reward then 
-                notify(source, "⚠️ Keine Belohnung verfügbar.") 
+                notify(source, "⚠️ Keine Belohnung verfügbar.")
                 cooldownLock[source] = nil 
                 return 
             end
 
-            -- Belohnung geben (Item oder Waffe)
+            -- Belohnung vergeben
             if reward.type == "item" then
                 xPlayer.addInventoryItem(reward.name, reward.count or 1)
                 notify(source, ("🎁 Du hast erhalten: %s x%d"):format(reward.name, reward.count or 1))
@@ -111,7 +135,7 @@ RegisterCommand("daily", function(source)
                 or ("Waffe: %s"):format(reward.name)
             sendToDiscord("🎁 Daily Reward", ("%s hat erhalten: %s"):format(xPlayer.getName(), rewardText), 65280, Config.Webhooks.dailyReward)
 
-            -- Neuen Zeitstempel in DB speichern
+            -- Zeitstempel in DB speichern
             MySQL.Async.execute("REPLACE INTO daily_rewards (identifier,last_claim) VALUES (@identifier,@time)", {
                 ['@identifier']=identifier,
                 ['@time']=now
@@ -127,8 +151,10 @@ RegisterCommand("daily", function(source)
     end)
 end, false)
 
+---------------------------------------
 -- Admin Befehl: /resetdaily [id]
--- Setzt den Daily-Reward-Cooldown für einen Spieler zurück
+-- Setzt den Cooldown für einen Spieler zurück
+---------------------------------------
 RegisterCommand("resetdaily", function(source,args)
     if source ~= 0 and not IsPlayerAceAllowed(source,"command.resetdaily") then 
         notify(source,"❌ Keine Berechtigung.") 
@@ -136,12 +162,18 @@ RegisterCommand("resetdaily", function(source,args)
     end
 
     local targetId = tonumber(args[1])
-    if not targetId then notify(source,"❌ Ungültige Spieler-ID.") return end
+    if not targetId then 
+        notify(source,"❌ Ungültige Spieler-ID.") 
+        return 
+    end
 
     local xTarget = ESX.GetPlayerFromId(targetId)
-    if not xTarget then notify(source,"❌ Spieler nicht gefunden.") return end
+    if not xTarget then 
+        notify(source,"❌ Spieler nicht gefunden.") 
+        return 
+    end
 
-    -- Cooldown aus der DB entfernen
+    -- Cooldown aus der DB löschen
     MySQL.Async.execute("DELETE FROM daily_rewards WHERE identifier=@identifier", {
         ['@identifier']=xTarget.getIdentifier()
     }, function()
@@ -151,16 +183,39 @@ RegisterCommand("resetdaily", function(source,args)
     end)
 end)
 
+---------------------------------------
+-- Admin Befehl: /setdaily [id] [stunden]
+-- Setzt den Cooldown für einen Spieler auf eine bestimmte Zeit in der Vergangenheit
+---------------------------------------
+RegisterCommand("setdaily", function(source, args)
+    if source ~= 0 and not IsPlayerAceAllowed(source, "command.setdaily") then
+        notify(source, "❌ Keine Berechtigung.")
+        return
+    end
+
+    local targetId = tonumber(args[1])
+    local hoursAgo = tonumber(args[2])
+    if not targetId or not hoursAgo then
+        notify(source, "❌ Nutzung: /setdaily [Spieler-ID] [Stunden]")
+        return
+    end
+
+    local xTarget = ESX.GetPlayerFromId(targetId)
+    if not xTarget then
+        notify(source, "❌ Spieler nicht gefunden.")
+        return
+    end
+
+    local identifier = xTarget.getIdentifier()
     local timestamp = os.time() - (hoursAgo * 3600)
 
+    -- Cooldown in der DB hinzufügen
     MySQL.Async.execute("REPLACE INTO daily_rewards (identifier, last_claim) VALUES (@identifier, @time)", {
         ['@identifier'] = identifier,
         ['@time'] = timestamp
     }, function()
-        local adminName = source == 0 and "CONSOLE" or GetPlayerName(source)
-        local targetName = xTarget.getName()
-
-        sendToDiscord("⏱️ Daily Cooldown gesetzt", ("%s hat den Cooldown für %s auf vor %d Stunden gesetzt."):format(adminName, targetName, hoursAgo), 16776960, Config.Webhooks.resetLog)
-        notify(source, ("✅ Cooldown für %s wurde gesetzt."):format(targetName))
+        sendToDiscord("⏱️ Daily Cooldown gesetzt", ("%s hat den Cooldown für %s auf vor %d Stunden gesetzt."):format(
+            source == 0 and "CONSOLE" or GetPlayerName(source), xTarget.getName(), hoursAgo), 16776960, Config.Webhooks.resetLog)
+        notify(source, ("✅ Cooldown für %s wurde gesetzt."):format(xTarget.getName()))
     end)
 end)
