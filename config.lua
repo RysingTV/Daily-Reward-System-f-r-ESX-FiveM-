@@ -5,7 +5,7 @@ Config.CooldownHours = 24
 
 -- Discord Webhooks
 Config.Webhooks = {
-    dailyReward = "DEIN WEBHOOK LINK",  -- LOG
+    dailyReward = "DEIN WEBHOOK LINK",  -- Log
     resetLog = "DEIN WEBHOOK LINK"      -- Log für Reset (z.B. High Team)
 }
 
