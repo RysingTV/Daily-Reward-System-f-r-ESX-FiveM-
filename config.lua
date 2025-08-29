@@ -8,7 +8,7 @@ Config.Webhooks = {
     dailyReward = "DEIN WEBHOOK LINK",  -- Log
     resetLog = "DEIN WEBHOOK LINK"      -- Log für Reset (z.B. High Team)
 }
-
+ 
 -- Belohnungen mit Gewichtung (je höher die Zahl (1-10), desto wahrscheinlicher)
 Config.RewardItems = {
     items = {

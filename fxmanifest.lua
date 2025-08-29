@@ -10,5 +10,5 @@ server_scripts {
     'config.lua',              -- muss VOR daily_reward.lua geladen werden
     'daily_reward.lua'         -- Hauptcode
 }
-
+ 
 dependency 'es_extended'

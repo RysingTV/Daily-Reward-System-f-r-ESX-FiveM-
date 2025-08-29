@@ -25,7 +25,7 @@ MySQL.ready(function()
         )
     ]])
 end)
-
+ 
 ---------------------------------------
 -- Utility Funktion: Benachrichtigung
 -- Schickt Nachricht an Spieler oder Konsole

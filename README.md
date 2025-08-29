@@ -52,3 +52,4 @@ Füge folgende Zeilen in deine server.cfg ein, um Admins Zugriff auf die Befehle
 
     add_ace group.admin command.resetdaily allow
     add_ace group.admin command.setdaily allow
+ 
